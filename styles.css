@@ -143,10 +143,9 @@ a {
 }
 
 .hero {
-  display: grid;
-  grid-template-columns: minmax(0, 1.04fr) minmax(360px, 0.96fr);
-  gap: 58px;
-  align-items: center;
+  display: block;
+  max-width: 900px;
+  margin: 0 auto;
   min-height: calc(100vh - 84px);
   padding-top: 70px;
 }
@@ -204,7 +203,7 @@ h3 {
 }
 
 .hero-lead {
-  max-width: 680px;
+  max-width: 900px;
   margin-bottom: 32px;
   color: #dfe5f4;
   font-size: clamp(18px, 1.7vw, 21px);
@@ -270,9 +269,9 @@ h3 {
   position: relative;
 }
 
-.hero-copy,
-.hero-visual {
+.hero-copy {
   min-width: 0;
+  max-width: 900px;
 }
 
 .portrait-stage {
