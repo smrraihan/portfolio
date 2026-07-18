@@ -167,7 +167,6 @@ p {
 }
 
 h1 {
-    width: 100%;
     max-width: none;
     margin-bottom: 24px;
     font-size: clamp(44px, 5.1vw, 72px);
