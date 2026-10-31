@@ -78,3 +78,18 @@ if (backTop) {
   updateBackTop();
   window.addEventListener("scroll", updateBackTop, { passive: true });
 }
+
+
+document.querySelectorAll(".mini-browser[data-preview-src]").forEach((preview) => {
+  const loadButton = preview.querySelector(".preview-load");
+  if (!loadButton) return;
+
+  loadButton.addEventListener("click", () => {
+    const frame = document.createElement("iframe");
+    frame.title = preview.dataset.previewTitle || "Application preview";
+    frame.src = preview.dataset.previewSrc;
+    frame.loading = "eager";
+    frame.tabIndex = -1;
+    preview.replaceChildren(frame);
+  }, { once: true });
+});
