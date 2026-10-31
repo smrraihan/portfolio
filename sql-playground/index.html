@@ -64,7 +64,7 @@ i.nl{color:var(--mute);font-size:12px}
 .card.where{border-left-color:var(--c-where)}.card.group{border-left-color:var(--c-group)}.card.sort{border-left-color:var(--c-sort)}.card.calc{border-left-color:var(--c-calc)}.card.having{border-left-color:var(--c-hav)}.card.expr{border-left-color:var(--c-expr)}
 .x{border:0;background:none;color:var(--mute);cursor:pointer;font-size:18px;line-height:1;padding:0 2px}
 input,select{font:inherit;padding:4px 6px;border-radius:5px;border:1px solid var(--line);background:var(--bg);color:var(--ink)}
-input{width:100px}
+input{width:100px}input[data-k=ea]{width:150px}
 .btn{font:inherit;font-size:12px;border:1px solid var(--line);background:linear-gradient(145deg,var(--panel2),var(--panel));color:var(--ink);padding:7px 13px;border-radius:7px;cursor:pointer;box-shadow:inset 0 1px #ffffff10,0 3px 0 #05080d;transition:transform .15s,filter .15s}
 .btn:hover{filter:brightness(1.18);transform:translateY(-1px)}
 .btn.run{background:var(--c-sel);color:#fff;border-color:var(--c-sel);font-weight:600}
@@ -150,7 +150,7 @@ const QZ=[
  {p:'Show total quantity for each product, including products with no stock records.',a:'SELECT products.product_name, SUM(inventory.quantity) FROM inventory RIGHT JOIN products ON inventory.product_id = products.product_id GROUP BY products.product_name',h:'RIGHT join, GROUP BY products.product_name, then set the aggregate to SUM(inventory.quantity).'},
  {p:'Show each warehouse whose total stock quantity is above 50.',a:'SELECT warehouse, SUM(quantity) FROM inventory GROUP BY warehouse HAVING SUM(quantity) > 50',h:'GROUP BY warehouse, set the aggregate to SUM(quantity), then add HAVING. Groups that fail fade out.'},
  {p:'Show stock_id and quantity, largest quantity first.',a:'SELECT stock_id, quantity FROM inventory ORDER BY quantity DESC',h:'Select stock_id and quantity, then drop ORDER BY on quantity and pick DESC.'},
- {p:'Show stock_id, quantity and an estimate with a 10% buffer (quantity * 1.1).',a:'SELECT stock_id, quantity, quantity * 1.1 FROM inventory',h:'Select stock_id and quantity, drop EXPRESSION on quantity, choose *, then type 1.1.'}
+ {p:'Show stock_id and the inventory value of each record (quantity * unit_cost), named inventory_value.',a:'SELECT stock_id, quantity * unit_cost AS inventory_value FROM inventory',h:'Select stock_id, add EXPRESSION to quantity, choose unit_cost as the second column, then set the AS name to inventory_value.'}
 ];
 const OPS=['=','!=','>','<','>=','<=','LIKE'],HOPS=['>','<','>=','<=','=','!='],FNS=['COUNT','COUNT DISTINCT','SUM','AVG','MIN','MAX'],MATH=['+','-','*','/'];
 const OPW={'+':'plus','-':'minus','*':'times','/':'div'};
@@ -169,7 +169,8 @@ const Qn=c=>join?c:cOf(c);
 const idx=(t,c)=>T[t].cols.indexOf(c);
 const val=(t,r,c)=>D[t].rows[r][idx(t,c)];
 const numv=v=>(v===''||v===null||isNaN(+v))?0:+v;
-const exName=e=>cOf(e.left)+'_'+OPW[e.op]+'_'+(e.rhs==='#'?String(e.num).replace(/\W+/g,'_'):cOf(e.rhs));
+const autoExName=e=>cOf(e.left)+'_'+OPW[e.op]+'_'+(e.rhs==='#'?String(e.num).replace(/\W+/g,'_'):cOf(e.rhs));
+const exName=e=>{const raw=(e.as||'').trim();if(!raw)return autoExName(e);const safe=raw.replace(/[^A-Za-z0-9_]+/g,'_').replace(/^[0-9]/,'_$&').slice(0,40);return safe||autoExName(e)};
 const exSQL=e=>Qn(e.left)+' '+e.op+' '+(e.rhs==='#'?numv(e.num):Qn(e.rhs));
 const colText=c=>c==='*'?'*':c[0]==='#'?'('+exSQL(ex(c.slice(1)))+')':Qn(c);
 const colName=c=>c==='*'?'rows':c[0]==='#'?exName(ex(c.slice(1))):cOf(c);
@@ -345,7 +346,8 @@ function drawBlocks(){
   });
   st.expr.forEach((e,i)=>{
     const inSel=!st.group&&!st.calc.length;
-    h+=`<div class="card expr"><b>EXPRESSION</b> ${e.left} <select data-k="eo" data-i="${i}">${sopt(MATH,e.op)}</select> <select data-k="er" data-i="${i}">${sopt([['#','number']].concat(avail().filter(isNum)),e.rhs)}</select>${e.rhs==='#'?` <input type="number" step="any" data-k="en" data-i="${i}" value="${esc(e.num)}">`:''} <span class="meta" style="margin:0">AS ${esc(exName(e))}${inSel?'':' (use it inside AGGREGATE)'}</span><button class="x" data-rm="expr" data-i="${i}" aria-label="Remove">×</button></div>`;
+    const rhsOpts=[['#','constant · number']].concat(avail().filter(c=>isNum(c)&&tOf(c)===tOf(e.left)).map(c=>[c,cOf(c)]));
+    h+=`<div class="card expr"><b>ƒ EXPR</b> <span>${esc(e.left)}</span> <select data-k="eo" data-i="${i}" aria-label="Expression operator">${sopt(MATH,e.op)}</select> <select data-k="er" data-i="${i}" aria-label="Second operand">${sopt(rhsOpts,e.rhs)}</select>${e.rhs==='#'?` <input type="number" step="any" data-k="en" data-i="${i}" value="${esc(e.num)}" aria-label="Constant number">`:''} <label class="meta" style="margin:0">AS <input type="text" data-k="ea" data-i="${i}" value="${esc(e.as||autoExName(e))}" placeholder="inventory_value" maxlength="40" aria-label="Expression alias" title="SQL alias: letters, numbers, and underscores"></label>${inSel?'':'<span class="meta" style="margin:0">(use in AGGREGATE)</span>'}<button class="x" data-rm="expr" data-i="${i}" aria-label="Remove expression">×</button></div>`;
   });
   st.sort.forEach((s,i)=>{
     h+=`<div class="card sort"><b>ORDER BY${st.sort.length>1?' '+(i+1):''}</b> <select data-k="by" data-i="${i}">${sopt(sortOpts(),s.by)}</select> <select data-k="dir" data-i="${i}">${sopt(['ASC','DESC'],s.dir)}</select><button class="x" data-rm="sort" data-i="${i}" aria-label="Remove">×</button></div>`;
@@ -380,7 +382,7 @@ function apply(type,c){
   else if(type==='calc')st.calc.push(isNum(c)?{fn:'SUM',col:c}:{fn:'COUNT',col:c});
   else if(type==='expr'){
     if(!isNum(c))note='EXPRESSION needs a number column, for example inventory.quantity.';
-    else st.expr.push({id:'e'+uid++,left:c,op:'*',rhs:'#',num:'2'});
+    else st.expr.push({id:'e'+uid++,left:c,op:'*',rhs:'#',num:'2',as:cOf(c)+'_times_2'});
   }else{const s=st.sort.find(x=>x.by===c);if(s)s.dir=s.dir==='ASC'?'DESC':'ASC';else st.sort.push({by:c,dir:'ASC'})}
   armed=null;redraw();
 }
@@ -474,7 +476,7 @@ $('blocks').onclick=e=>{
 };
 $('blocks').oninput=e=>{
   const t=e.target,k=t.dataset.k,i=+t.dataset.i;
-  if(k==='val')st.where[i].val=t.value;else if(k==='hv')st.having[i].val=t.value;else if(k==='en')st.expr[i].num=t.value;else return;
+  if(k==='val')st.where[i].val=t.value;else if(k==='hv')st.having[i].val=t.value;else if(k==='en')st.expr[i].num=t.value;else if(k==='ea')st.expr[i].as=t.value;else return;
   redraw2();
 };
 $('blocks').onchange=e=>{
