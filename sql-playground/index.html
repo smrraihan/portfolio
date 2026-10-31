@@ -38,7 +38,17 @@ i.nl{color:var(--mute);font-size:12px}
 .tag,.chip,.jt.on{color:#07111d}
 .t-sel{background:var(--c-sel)}.t-where{background:var(--c-where)}.t-group{background:var(--c-group)}.t-sort{background:var(--c-sort)}.t-calc{background:var(--c-calc)}.t-join{background:var(--c-join)}.t-expr{background:var(--c-expr)}
 .tx{border:0;background:none;color:inherit;cursor:pointer;font:inherit;font-size:13px;font-weight:700;line-height:1;padding:0 0 0 4px;opacity:.85}.tx:hover{opacity:1}
-.jbar{display:flex;gap:12px;align-items:center;flex-wrap:wrap;padding:10px 14px;margin-bottom:12px}
+.jbar{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:8px 16px;padding:10px 14px;margin-bottom:12px;overflow:visible}
+#jtypes{grid-column:1/-1}
+#jon{grid-column:1;min-width:0}
+#jon code{font:11px/1.4 ui-monospace,monospace!important;color:#b7c9df}
+.jbar .jx{grid-column:2;display:flex;align-items:center;gap:9px;justify-content:flex-end;min-width:0;position:relative;flex:none}
+#venn{display:flex;align-items:center;flex:none;opacity:.9}
+.join-info{position:relative;min-width:0}
+.join-summary{font-size:11px;color:#bfcee0;white-space:nowrap}
+.join-study{display:none;position:absolute;z-index:10;right:0;top:calc(100% + 10px);width:min(350px,calc(100vw - 48px));padding:10px 12px;border:1px solid #354c66;border-radius:8px;background:#0b121c;color:#d7e4f3;font:12px/1.5 ui-monospace,monospace;box-shadow:0 12px 32px #000a;white-space:normal}
+.jx:hover .join-study,.jx:focus .join-study,.jx:focus-within .join-study{display:block}
+@media(max-width:720px){.jbar{grid-template-columns:minmax(0,1fr)}#jon,.jbar .jx{grid-column:1}.jbar .jx{justify-content:flex-start}.join-study{left:0;right:auto}}
 .jt{font:inherit;font-size:12px;font-weight:700;border:1px solid var(--line);background:#0d141e;color:var(--mute);padding:6px 11px;border-radius:7px;cursor:pointer;transition:.16s}
 .jt.on{border-color:var(--c-join);background:var(--c-join);color:#fff}
 .jx{flex:1 1 260px;min-width:220px}
@@ -85,8 +95,8 @@ textarea{width:100%;min-height:150px;margin-bottom:10px;background:var(--code);c
       <button class="jt" data-j="RIGHT">RIGHT ▷</button>
       <button class="jt" data-j="FULL">◉ FULL</button>
     </div>
-    <div class="row hide" id="jon" style="margin:0"><code style="background:var(--bg);padding:3px 8px;border-radius:4px;border:1px solid var(--line)">ON claims.payer_id = payers.payer_id</code><span class="meta" style="margin:0">Fixed. These two tables link only through payer_id.</span></div>
-    <div class="row hide jx" id="jx" style="margin:0"><span id="venn"></span><span id="jtext" class="meta" style="margin:0"></span></div>
+    <div class="row hide" id="jon" style="margin:0"><code style="background:var(--bg);padding:5px 8px;border-radius:6px;border:1px solid var(--line)">ON claims.payer_id = payers.payer_id</code></div>
+    <div class="row hide jx" id="jx" tabindex="0" aria-label="Join details. Hover or focus for explanation." style="margin:0"><span id="venn"></span><span class="join-info"><span id="jsummary" class="join-summary"></span><span id="jtext" class="join-study" role="tooltip"></span></span></div>
   </div>
 
   <div class="row" id="palette">
@@ -304,7 +314,7 @@ function drawPanels(an){
 }
 function venn(t){
   const L=['LEFT','FULL'].includes(t),R=['RIGHT','FULL'].includes(t),f='var(--c-join)';
-  return `<svg viewBox="0 0 120 70" width="120" height="70" aria-hidden="true" style="color:var(--ink)"><defs><clipPath id="cr"><circle cx="75" cy="35" r="26"/></clipPath></defs>
+  return `<svg viewBox="0 0 120 70" width="72" height="42" aria-hidden="true" style="color:var(--ink)"><defs><clipPath id="cr"><circle cx="75" cy="35" r="26"/></clipPath></defs>
   <circle cx="45" cy="35" r="26" fill="${L?f:'none'}" fill-opacity=".55"/><circle cx="75" cy="35" r="26" fill="${R?f:'none'}" fill-opacity=".55"/>
   <circle cx="45" cy="35" r="26" clip-path="url(#cr)" fill="${f}" fill-opacity=".9"/>
   <circle cx="45" cy="35" r="26" fill="none" stroke="currentColor"/><circle cx="75" cy="35" r="26" fill="none" stroke="currentColor"/>
@@ -316,7 +326,8 @@ function drawJoin(an){
   if(!join)return;
   const s=an.stats;
   $('venn').innerHTML=venn(join.type);
-  $('jtext').innerHTML='<b>'+JN[join.type]+'.</b> '+JTXT[join.type]+'<br>Result: <b>'+s.total+' rows</b> ('+s.pairs+' matched pairs, '+s.lu+' unmatched claims, '+s.ru+' unmatched payers). A = claims, B = payers.';
+  $('jsummary').innerHTML='<b>'+JN[join.type]+'</b> · '+s.total+' rows · '+s.pairs+' matched · '+(s.lu+s.ru)+' unmatched';
+  $('jtext').innerHTML='<b>'+JN[join.type]+'.</b> '+JTXT[join.type]+' Fixed link: claims.payer_id = payers.payer_id. Result: <b>'+s.total+' rows</b> ('+s.pairs+' matched pairs, '+s.lu+' unmatched claims, '+s.ru+' unmatched payers). In the diagram, A = claims and B = payers.';
 }
 const sopt=(a,v)=>a.map(o=>{const p=Array.isArray(o)?o:[o,o];return `<option value="${esc(p[0])}"${p[0]===v?' selected':''}>${esc(p[1])}</option>`}).join('');
 function drawBlocks(){
