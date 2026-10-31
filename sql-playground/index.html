@@ -82,7 +82,7 @@ textarea{width:100%;min-height:150px;margin-bottom:10px;background:var(--code);c
 <body>
 <main>
   <h1>SQL Playground</h1>
-  <p class="sub">// inspect rows · compose a query · execute when ready</p>
+  <p class="sub">// stock ledger + product catalog · inspect, join, filter & aggregate</p>
   <div class="row"><p id="hint" class="meta" style="margin:0">[ init ] Loading SQL engine…</p><button class="btn" id="reset" style="margin-left:auto">↺ RESET</button></div>
 
   <div class="panels" id="panels"></div>
@@ -95,7 +95,7 @@ textarea{width:100%;min-height:150px;margin-bottom:10px;background:var(--code);c
       <button class="jt" data-j="RIGHT">RIGHT ▷</button>
       <button class="jt" data-j="FULL">◉ FULL</button>
     </div>
-    <div class="row hide" id="jon" style="margin:0"><code style="background:var(--bg);padding:5px 8px;border-radius:6px;border:1px solid var(--line)">ON claims.payer_id = payers.payer_id</code></div>
+    <div class="row hide" id="jon" style="margin:0"><code style="background:var(--bg);padding:5px 8px;border-radius:6px;border:1px solid var(--line)">ON inventory.product_id = products.product_id</code></div>
     <div class="row hide jx" id="jx" tabindex="0" aria-label="Join details. Hover or focus for explanation." style="margin:0"><span id="venn"></span><span class="join-info"><span id="jsummary" class="join-summary"></span><span id="jtext" class="join-study" role="tooltip"></span></span></div>
   </div>
 
@@ -135,27 +135,27 @@ textarea{width:100%;min-height:150px;margin-bottom:10px;background:var(--code);c
 
 <script>
 const $=id=>document.getElementById(id);
-const T={claims:{cols:['claim_id','payer_id','status','state','amount'],num:['claim_id','payer_id','amount']},
-         payers:{cols:['payer_id','name','type','state','credit_limit'],num:['payer_id','credit_limit']}};
+const T={inventory:{cols:['stock_id','product_id','warehouse','stock_status','quantity','unit_cost'],num:['stock_id','product_id','quantity','unit_cost']},
+         products:{cols:['product_id','product_name','category','reorder_level'],num:['product_id','reorder_level']}};
 const SEED={
- claims:[[1,1,'Paid','TX',1200],[2,1,'Pending','FL',430],[3,2,'Blocked','CA',860],[4,2,'Paid','CA',2200],[5,3,'Denied','FL',150],[6,3,'Paid','FL',3100],[7,4,'Pending','NY',720],[8,1,'Paid','TX',980],[9,4,'Blocked','NY',510],[10,3,'Pending','TX',1900],[11,7,'Paid','FL',640],[12,7,'Denied','CA',275],[13,null,'Pending','NY',390],[14,2,'Paid','TX',1750],[15,1,'Blocked','FL',1320],[16,4,'Paid','CA',2480]],
- payers:[[1,'Acme Insurance','AUTO','TX',50000],[2,'SafeWork Mutual','WC','CA',30000],[3,'Delta Mutual','AUTO','FL',45000],[4,'Northwind Cover','WC','NY',25000],[5,'Harbor Re','AUTO','FL',60000],[6,'Summit Mutual','WC','TX',20000]]};
+ inventory:[[1,101,'Central','In stock',42,18.50],[2,101,'North','Low stock',8,18.50],[3,102,'Central','In stock',26,74.99],[4,102,'East','In stock',14,74.99],[5,103,'West','Out of stock',0,12.00],[6,103,'Central','In stock',32,12.00],[7,104,'North','Low stock',5,145.00],[8,101,'East','In stock',19,18.50],[9,104,'East','In stock',12,145.00],[10,103,'West','Low stock',7,12.00],[11,107,'Central','In stock',11,32.00],[12,107,'North','Out of stock',0,32.00],[13,null,'East','Low stock',3,9.50],[14,102,'West','In stock',21,74.99],[15,101,'Central','Low stock',6,18.50],[16,104,'East','In stock',18,145.00]],
+ products:[[101,'USB-C cable','Accessories',10],[102,'Mechanical keyboard','Electronics',8],[103,'Ceramic mug','Home',12],[104,'Desk lamp','Home',6],[105,'Notebook set','Stationery',15],[106,'Canvas tote bag','Accessories',10]]};
 const JN={INNER:'INNER JOIN',LEFT:'LEFT JOIN',RIGHT:'RIGHT JOIN',FULL:'FULL OUTER JOIN'};
-const JTXT={INNER:'Keeps only rows that have a match on both sides. Everything else is dropped.',LEFT:'Keeps every claims row. When payers has no match, its columns become NULL.',RIGHT:'Keeps every payers row. When claims has no match, its columns become NULL.',FULL:'Keeps every row from both tables. A missing side becomes NULL.'};
+const JTXT={INNER:'Keeps only stock rows that match a product. Rows without a matching product are dropped.',LEFT:'Keeps every inventory row. When a product has no match, its columns become NULL.',RIGHT:'Keeps every product. When there is no inventory record, its stock columns become NULL.',FULL:'Keeps every inventory row and every product. A missing side becomes NULL.'};
 const QZ=[
- {p:"Show claim_id and amount for claims in state 'FL'.",a:"SELECT claim_id, amount FROM claims WHERE state = 'FL'",h:'Select two columns, then drop WHERE on claims.state and choose FL.'},
- {p:'Count how many claims each status has.',a:'SELECT status, COUNT(*) FROM claims GROUP BY status',h:'Drop GROUP BY on claims.status. COUNT(*) appears automatically.'},
- {p:'Show each claim_id with the name of its payer. Only claims that have a payer.',a:'SELECT claims.claim_id, payers.name FROM claims INNER JOIN payers ON claims.payer_id = payers.payer_id',h:'Choose INNER, then select claim_id and name.'},
- {p:'List every payer name with its claim_id, including payers that have no claims.',a:'SELECT payers.name, claims.claim_id FROM claims RIGHT JOIN payers ON claims.payer_id = payers.payer_id',h:'Which side must be fully kept? Watch the highlighted rows.'},
- {p:'Total claim amount per payer name, keeping payers with no claims.',a:'SELECT payers.name, SUM(claims.amount) FROM claims RIGHT JOIN payers ON claims.payer_id = payers.payer_id GROUP BY payers.name',h:'RIGHT join, GROUP BY payers.name, then change the aggregate to SUM(claims.amount).'},
- {p:'Show each state whose total claim amount is above 3000.',a:'SELECT state, SUM(amount) FROM claims GROUP BY state HAVING SUM(amount) > 3000',h:'GROUP BY state, set the aggregate to SUM(amount), then add HAVING. Groups that fail fade out.'},
- {p:'Show claim_id and amount, largest amount first.',a:'SELECT claim_id, amount FROM claims ORDER BY amount DESC',h:'Select both columns, then drop ORDER BY on amount and pick DESC. The rows reorder live.'},
- {p:'Show claim_id, amount and amount * 1.1 for every claim.',a:'SELECT claim_id, amount, amount * 1.1 FROM claims',h:'Select claim_id and amount, drop EXPRESSION on amount, choose *, then type 1.1.'}
+ {p:"Show stock_id and quantity for inventory in the 'Central' warehouse.",a:"SELECT stock_id, quantity FROM inventory WHERE warehouse = 'Central'",h:'Select stock_id and quantity, then add WHERE to warehouse and choose Central.'},
+ {p:'Count the inventory records for each stock status.',a:'SELECT stock_status, COUNT(*) FROM inventory GROUP BY stock_status',h:'Drop GROUP BY on stock_status. COUNT(*) appears automatically.'},
+ {p:'Show each stock record with its product name. Keep only records linked to a product.',a:'SELECT inventory.stock_id, products.product_name FROM inventory INNER JOIN products ON inventory.product_id = products.product_id',h:'Choose INNER, then select stock_id and product_name.'},
+ {p:'List every product and its stock_id, including products not yet in inventory.',a:'SELECT products.product_name, inventory.stock_id FROM inventory RIGHT JOIN products ON inventory.product_id = products.product_id',h:'Keep every product, including ones without a matching stock record. Watch the highlighted rows.'},
+ {p:'Show total quantity for each product, including products with no stock records.',a:'SELECT products.product_name, SUM(inventory.quantity) FROM inventory RIGHT JOIN products ON inventory.product_id = products.product_id GROUP BY products.product_name',h:'RIGHT join, GROUP BY products.product_name, then set the aggregate to SUM(inventory.quantity).'},
+ {p:'Show each warehouse whose total stock quantity is above 50.',a:'SELECT warehouse, SUM(quantity) FROM inventory GROUP BY warehouse HAVING SUM(quantity) > 50',h:'GROUP BY warehouse, set the aggregate to SUM(quantity), then add HAVING. Groups that fail fade out.'},
+ {p:'Show stock_id and quantity, largest quantity first.',a:'SELECT stock_id, quantity FROM inventory ORDER BY quantity DESC',h:'Select stock_id and quantity, then drop ORDER BY on quantity and pick DESC.'},
+ {p:'Show stock_id, quantity and an estimate with a 10% buffer (quantity * 1.1).',a:'SELECT stock_id, quantity, quantity * 1.1 FROM inventory',h:'Select stock_id and quantity, drop EXPRESSION on quantity, choose *, then type 1.1.'}
 ];
 const OPS=['=','!=','>','<','>=','<=','LIKE'],HOPS=['>','<','>=','<=','=','!='],FNS=['COUNT','COUNT DISTINCT','SUM','AVG','MIN','MAX'],MATH=['+','-','*','/'];
 const OPW={'+':'plus','-':'minus','*':'times','/':'div'};
 const E0=()=>({where:[],group:null,calc:[],having:[],expr:[],sort:[]});
-let db,D={},base='claims',join=null,sel=[],st=E0(),armed=null,qi=0,note='',uid=1;
+let db,D={},base='inventory',join=null,sel=[],st=E0(),armed=null,qi=0,note='',uid=1;
 
 const esc=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 const hl=s=>esc(s).replace(/\b(GROUP BY)\b/g,'<b class="g">$1</b>').replace(/\b(INNER JOIN|LEFT JOIN|RIGHT JOIN|FULL OUTER JOIN|ON)\b/g,'<b class="j">$1</b>').replace(/\b(SELECT|FROM|WHERE|HAVING|ORDER BY|AND|LIKE|AS|DESC|ASC|DISTINCT|COUNT|SUM|AVG|MIN|MAX)\b/g,'<b class="k">$1</b>');
@@ -163,7 +163,7 @@ const q=sql=>{const r=db.exec(sql);return r.length?{cols:r[0].columns,rows:r[0].
 const tOf=c=>c.split('.')[0],cOf=c=>c.split('.')[1];
 const ex=id=>st.expr.find(e=>e.id===id);
 const isNum=c=>c==='*'?false:c[0]==='#'?true:T[tOf(c)].num.includes(cOf(c));
-const tabs=()=>join?['claims','payers']:[base];
+const tabs=()=>join?['inventory','products']:[base];
 const avail=()=>tabs().flatMap(t=>T[t].cols.map(c=>t+'.'+c));
 const Qn=c=>join?c:cOf(c);
 const idx=(t,c)=>T[t].cols.indexOf(c);
@@ -183,10 +183,10 @@ const cmp=(a,op,b)=>{if(a===null||a===undefined)return false;switch(op){case '='
 async function init(){
   const SQL=await initSqlJs({locateFile:f=>'https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.3/'+f});
   db=new SQL.Database();
-  db.run('CREATE TABLE claims(claim_id INTEGER,payer_id INTEGER,status TEXT,state TEXT,amount REAL);CREATE TABLE payers(payer_id INTEGER,name TEXT,type TEXT,state TEXT,credit_limit INTEGER);');
-  SEED.claims.forEach(r=>db.run('INSERT INTO claims VALUES(?,?,?,?,?)',r));
-  SEED.payers.forEach(r=>db.run('INSERT INTO payers VALUES(?,?,?,?,?)',r));
-  D.claims=q('SELECT * FROM claims');D.payers=q('SELECT * FROM payers');
+  db.run('CREATE TABLE inventory(stock_id INTEGER,product_id INTEGER,warehouse TEXT,stock_status TEXT,quantity INTEGER,unit_cost REAL);CREATE TABLE products(product_id INTEGER,product_name TEXT,category TEXT,reorder_level INTEGER);');
+  SEED.inventory.forEach(r=>db.run('INSERT INTO inventory VALUES(?,?,?,?,?,?)',r));
+  SEED.products.forEach(r=>db.run('INSERT INTO products VALUES(?,?,?,?)',r));
+  D.inventory=q('SELECT * FROM inventory');D.products=q('SELECT * FROM products');
   $('run').disabled=false;drawQ();redraw();
 }
 
@@ -199,7 +199,7 @@ function cond(w){
   const v=isNum(w.col)&&w.op!=='LIKE'?numv(w.val):"'"+String(w.val).replace(/'/g,"''")+"'";
   return Qn(w.col)+' '+w.op+' '+v;
 }
-const fromSQL=()=>join?'claims\n'+JN[join.type]+' payers\n  ON claims.payer_id = payers.payer_id':base;
+const fromSQL=()=>join?'inventory\n'+JN[join.type]+' products\n  ON inventory.product_id = products.product_id':base;
 const whereSQL=()=>st.where.length?'\nWHERE '+st.where.map(cond).join(' AND '):'';
 const havExpr=h=>{const c=st.calc.find(x=>alias(x)===h.ref);return c?aggSQL(c):h.ref};
 function build(){
@@ -252,10 +252,10 @@ function rowOrder(t){
 /* Work out how every row should look before the query runs */
 function analyze(){
   const info={},hue=i=>(i*67+20)%360;
-  ['claims','payers'].forEach(t=>info[t]=D[t].rows.map(()=>({cls:[],bg:'',st:'',bd:'',h:'',hit:{}})));
+  ['inventory','products'].forEach(t=>info[t]=D[t].rows.map(()=>({cls:[],bg:'',st:'',bd:'',h:'',hit:{}})));
   let stats=null;
   if(join){
-    const L=D.claims.rows.map((_,i)=>val('claims',i,'payer_id')),R=D.payers.rows.map((_,i)=>val('payers',i,'payer_id')),cl=new Map(),cr=new Map();
+    const L=D.inventory.rows.map((_,i)=>val('inventory',i,'product_id')),R=D.products.rows.map((_,i)=>val('products',i,'product_id')),cl=new Map(),cr=new Map();
     L.forEach(k=>k!==null&&cl.set(k,(cl.get(k)||0)+1));R.forEach(k=>k!==null&&cr.set(k,(cr.get(k)||0)+1));
     const order=[...cl.keys()].filter(k=>cr.has(k));let pairs=0,lu=0,ru=0;
     order.forEach(k=>pairs+=cl.get(k)*cr.get(k));
@@ -263,7 +263,7 @@ function analyze(){
     const mark=(arr,keys,other,keep)=>keys.forEach((k,i)=>{const o=arr[i];
       if(k!==null&&other.has(k)){o.bg=`hsl(${hue(order.indexOf(k))} 70% 50% / .28)`;o.bd='↔ '+other.get(k);o.h='k'+k}
       else if(keep){o.cls.push('un');o.bd='+ NULLs'}else{o.cls.push('dim');o.bd='✕ dropped'}});
-    mark(info.claims,L,cr,kl);mark(info.payers,R,cl,kr);
+    mark(info.inventory,L,cr,kl);mark(info.products,R,cl,kr);
     L.forEach(k=>{if(k===null||!cr.has(k))lu++});R.forEach(k=>{if(k===null||!cl.has(k))ru++});
     stats={pairs,lu,ru,total:pairs+(kl?lu:0)+(kr?ru:0)};
   }
@@ -289,7 +289,7 @@ function analyze(){
 function tags(c){
   const t=[];
   if(sel.includes(c))t.push(['sel','SELECT','sel']);else if(st.group===c)t.push(['sel','SELECT']);
-  if(join&&cOf(c)==='payer_id')t.push(['join','ON']);
+  if(join&&cOf(c)==='product_id')t.push(['join','ON']);
   if(st.where.some(w=>w.col===c))t.push(['where','WHERE','where']);
   if(st.group===c)t.push(['group','GROUP BY','group']);
   if(st.calc.some(x=>x.col===c))t.push(['calc','AGG','calc']);
@@ -300,7 +300,7 @@ function tags(c){
 }
 const fmt=v=>v===null?'NULL':typeof v==='number'?Math.round(v*100)/100:v;
 function drawPanels(an){
-  $('panels').innerHTML=['claims','payers'].map(t=>{
+  $('panels').innerHTML=['inventory','products'].map(t=>{
     const inq=tabs().includes(t),cs=T[t].cols;
     const xs=inq?st.expr.filter(e=>tOf(e.left)===t&&(e.rhs==='#'||tOf(e.rhs)===t)):[];
     const head='<tr>'+cs.map(c=>{const k=t+'.'+c;return `<th tabindex="0" data-t="${t}" data-c="${c}">${c}${tags(k).map(x=>`<span class="tag t-${x[0]}">${x[1]}${x[2]?`<button class="tx" data-x="${x[2]}" data-q="${k}" aria-label="Remove ${x[1]}">×</button>`:''}</span>`).join('')}</th>`}).join('')+xs.map(e=>`<th class="xc" title="${esc(exSQL(e))}">${esc(exName(e))}</th>`).join('')+(join?'<th>join result</th>':'')+'</tr>';
@@ -327,7 +327,7 @@ function drawJoin(an){
   const s=an.stats;
   $('venn').innerHTML=venn(join.type);
   $('jsummary').innerHTML='<b>'+JN[join.type]+'</b> · '+s.total+' rows · '+s.pairs+' matched · '+(s.lu+s.ru)+' unmatched';
-  $('jtext').innerHTML='<b>'+JN[join.type]+'.</b> '+JTXT[join.type]+' Fixed link: claims.payer_id = payers.payer_id. Result: <b>'+s.total+' rows</b> ('+s.pairs+' matched pairs, '+s.lu+' unmatched claims, '+s.ru+' unmatched payers). In the diagram, A = claims and B = payers.';
+  $('jtext').innerHTML='<b>'+JN[join.type]+'.</b> '+JTXT[join.type]+' Fixed link: inventory.product_id = products.product_id. Result: <b>'+s.total+' rows</b> ('+s.pairs+' matched pairs, '+s.lu+' inventory rows without a product, '+s.ru+' products without stock). In the diagram, A = inventory and B = products.';
 }
 const sopt=(a,v)=>a.map(o=>{const p=Array.isArray(o)?o:[o,o];return `<option value="${esc(p[0])}"${p[0]===v?' selected':''}>${esc(p[1])}</option>`}).join('');
 function drawBlocks(){
@@ -379,7 +379,7 @@ function apply(type,c){
   }else if(type==='group'){st.group=c;if(!st.calc.length)st.calc.push({fn:'COUNT',col:'*'})}
   else if(type==='calc')st.calc.push(isNum(c)?{fn:'SUM',col:c}:{fn:'COUNT',col:c});
   else if(type==='expr'){
-    if(!isNum(c))note='EXPRESSION needs a number column, for example claims.amount.';
+    if(!isNum(c))note='EXPRESSION needs a number column, for example inventory.quantity.';
     else st.expr.push({id:'e'+uid++,left:c,op:'*',rhs:'#',num:'2'});
   }else{const s=st.sort.find(x=>x.by===c);if(s)s.dir=s.dir==='ASC'?'DESC':'ASC';else st.sort.push({by:c,dir:'ASC'})}
   armed=null;redraw();
@@ -388,11 +388,11 @@ function apply(type,c){
 function checkJoin(sql){
   const s=sql.replace(/--.*$/gm,' ');
   if(!/\bjoin\b/i.test(s))return;
-  const bad=new Error('Join error: claims and payers can only be joined ON claims.payer_id = payers.payer_id.');
+  const bad=new Error('Join error: inventory and products can only be joined ON inventory.product_id = products.product_id.');
   if(/\b(natural|cross)\b/i.test(s))throw bad;
   const ons=[...s.matchAll(/\bon\b\s+([\s\S]*?)(?=\b(?:where|group|having|order|limit|inner|left|right|full|join|natural)\b|;|$)/gi)].map(m=>m[1].trim());
-  const using=/\busing\s*\(\s*payer_id\s*\)/i.test(s);
-  const ok=r=>/^(claims\s*\.\s*payer_id\s*=\s*payers\s*\.\s*payer_id|payers\s*\.\s*payer_id\s*=\s*claims\s*\.\s*payer_id)$/i.test(r);
+  const using=/\busing\s*\(\s*product_id\s*\)/i.test(s);
+  const ok=r=>/^(inventory\s*\.\s*product_id\s*=\s*products\s*\.\s*product_id|products\s*\.\s*product_id\s*=\s*inventory\s*\.\s*product_id)$/i.test(r);
   if(!(using&&!ons.length)&&(!ons.length||!ons.every(ok)))throw bad;
 }
 function run(){
@@ -418,7 +418,7 @@ $('hint2').onclick=()=>{$('fb').innerHTML='<p class="fb">Hint: '+esc(QZ[qi].h)+'
 $('show').onclick=()=>{$('fb').innerHTML='<p class="fb">One possible answer:</p><pre style="min-height:0">'+hl(QZ[qi].a)+'</pre>'};
 $('next').onclick=()=>{qi=(qi+1)%QZ.length;drawQ()};
 
-function reset(){base='claims';join=null;sel=[];st=E0();armed=null;$('out').innerHTML='';redraw()}
+function reset(){base='inventory';join=null;sel=[];st=E0();armed=null;$('out').innerHTML='';redraw()}
 $('reset').onclick=reset;
 $('run').onclick=run;
 $('manual').onchange=e=>{$('sqlview').classList.toggle('hide',e.target.checked);$('editor').classList.toggle('hide',!e.target.checked);if(e.target.checked)$('editor').value=build()};
