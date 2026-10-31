@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SQL Playground: see joins, groups, filters and maths before you run</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.3/sql-wasm.js"></script>
+<style>
+:root{--bg:#f6f7f4;--panel:#fff;--ink:#1c2230;--mute:#667085;--line:#d9ddd3;--hi:#fff1b8;--hit:#ffd54a;--code:#12182a;--codefg:#e6ebf5;--ok:#0d8a6f;--bad:#c4382f;
+--c-sel:#2457d6;--c-where:#b7791f;--c-group:#0d8a6f;--c-sort:#7c4dcc;--c-calc:#c2410c;--c-join:#d6336c;--c-hav:#0e7490;--c-expr:#4d7c0f}
+@media(prefers-color-scheme:dark){:root{--bg:#12151c;--panel:#1a1f2b;--ink:#e8ebf2;--mute:#9aa3b5;--line:#2c3345;--hi:#3a3418;--hit:#8a6d12;--code:#0b0e14;--ok:#4fd1b0;--bad:#ff8a80;--c-sel:#7ea2ff;--c-where:#f0b44c;--c-group:#4fd1b0;--c-sort:#b799ff;--c-calc:#ff9a5c;--c-join:#ff7aa8;--c-hav:#5cc8e0;--c-expr:#a3d65c}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif}
+main{max-width:1100px;margin:0 auto;padding:24px 16px 48px}
+h1{font-size:26px;margin:0 0 4px;letter-spacing:-.01em}h2{font-size:18px;margin:32px 0 8px}
+.sub,.meta{color:var(--mute)}.sub{margin:0 0 14px}.meta{font-size:13px;margin:0 0 6px}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:10px}
+.box{background:var(--panel);border:1px solid var(--line);border-radius:6px}
+.scroll{max-height:330px;overflow:auto}
+.panels{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
+@media(max-width:760px){.panels{grid-template-columns:1fr}}
+.ph{display:flex;gap:8px;align-items:center;margin-bottom:4px}.ph b{font-size:16px}
+.bdg{font-size:10px;font-weight:700;padding:1px 6px;border-radius:3px;background:var(--ink);color:var(--bg)}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th,td{padding:4px 9px;text-align:left;white-space:nowrap;border-bottom:1px solid var(--line)}
+th{position:sticky;top:0;background:var(--panel);font-weight:600;z-index:1}
+.pn th[data-c]{cursor:pointer;box-shadow:inset 0 -2px 0 var(--line)}
+.pn th[data-c]:hover,.pn th.over{background:var(--hi)}
+.pn th.over{outline:2px dashed var(--ink);outline-offset:-3px}
+th.xc{color:var(--c-expr)}td.xc{color:var(--c-expr);font-weight:600;font-variant-numeric:tabular-nums;border-left:1px dashed var(--line)}
+tr.dim{opacity:.3}tr.un{background:var(--hi)}tr.pair{outline:2px solid var(--ink);outline-offset:-2px}
+td.on{font-weight:600}td.hit{background:var(--hit);font-weight:700}td.num{font-variant-numeric:tabular-nums}
+td.bd{color:var(--mute);font-size:12px;font-style:italic;border-left:1px dashed var(--line)}
+i.nl{color:var(--mute);font-size:12px}
+.tag{display:inline-block;margin-left:4px;padding:0 5px;border-radius:3px;font-size:10px;font-weight:700;color:#fff;vertical-align:middle}
+@media(prefers-color-scheme:dark){.tag,.chip,.jt.on{color:#111}}
+.t-sel{background:var(--c-sel)}.t-where{background:var(--c-where)}.t-group{background:var(--c-group)}.t-sort{background:var(--c-sort)}.t-calc{background:var(--c-calc)}.t-join{background:var(--c-join)}.t-expr{background:var(--c-expr)}
+.tx{border:0;background:none;color:inherit;cursor:pointer;font:inherit;font-size:13px;font-weight:700;line-height:1;padding:0 0 0 4px;opacity:.85}.tx:hover{opacity:1}
+.jbar{display:flex;gap:12px;align-items:center;flex-wrap:wrap;padding:10px 14px;margin-bottom:12px}
+.jt{font:inherit;font-weight:700;border:2px solid var(--line);background:var(--panel);color:var(--ink);padding:6px 12px;border-radius:6px;cursor:pointer}
+.jt.on{border-color:var(--c-join);background:var(--c-join);color:#fff}
+.jx{flex:1 1 260px;min-width:220px}
+.chip{padding:7px 14px;border-radius:6px;font-weight:700;color:#fff;cursor:grab;user-select:none;border:2px solid transparent}
+.chip.armed{border-color:var(--ink)}
+.chip[data-t=where]{background:var(--c-where)}.chip[data-t=group]{background:var(--c-group)}.chip[data-t=sort]{background:var(--c-sort)}.chip[data-t=calc]{background:var(--c-calc)}.chip[data-t=having]{background:var(--c-hav)}.chip[data-t=expr]{background:var(--c-expr)}
+#blocks{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+.card{display:flex;gap:6px;align-items:center;flex-wrap:wrap;padding:6px 10px;border-radius:6px;background:var(--panel);border:1px solid var(--line);border-left-width:5px}
+.card b{font-size:12px}
+.card.where{border-left-color:var(--c-where)}.card.group{border-left-color:var(--c-group)}.card.sort{border-left-color:var(--c-sort)}.card.calc{border-left-color:var(--c-calc)}.card.having{border-left-color:var(--c-hav)}.card.expr{border-left-color:var(--c-expr)}
+.x{border:0;background:none;color:var(--mute);cursor:pointer;font-size:18px;line-height:1;padding:0 2px}
+input,select{font:inherit;padding:4px 6px;border-radius:5px;border:1px solid var(--line);background:var(--bg);color:var(--ink)}
+input{width:100px}
+.btn{font:inherit;border:1px solid var(--line);background:var(--panel);color:var(--ink);padding:7px 14px;border-radius:6px;cursor:pointer}
+.btn.run{background:var(--c-sel);color:#fff;border-color:var(--c-sel);font-weight:600}
+:is(button,select,input,textarea,th,.chip):focus-visible{outline:2px solid var(--c-sel);outline-offset:2px}
+#legend{display:flex;gap:8px 14px;flex-wrap:wrap;font-size:13px;margin-bottom:10px}
+#legend span::before{content:"";display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:5px;vertical-align:-1px;background:var(--g)}
+#legend span.gx{opacity:.5;text-decoration:line-through}
+pre{margin:0 0 10px;background:var(--code);color:var(--codefg);padding:14px 16px;border-radius:6px;font:14px/1.6 ui-monospace,Menlo,Consolas,monospace;overflow:auto;min-height:84px}
+pre b.k{color:#8fb2ff}pre b.g{color:#4fd1b0}pre b.j{color:#ff8fb3}
+textarea{width:100%;min-height:150px;margin-bottom:10px;background:var(--code);color:var(--codefg);border:0;border-radius:6px;padding:14px 16px;font:14px/1.6 ui-monospace,Menlo,Consolas,monospace;resize:vertical}
+.err{color:var(--bad);margin:0}.fb{font-weight:600;margin:8px 0}.fb.ok{color:var(--ok)}.fb.bad{color:var(--bad)}
+.hide{display:none}footer{margin-top:28px;color:var(--mute);font-size:13px}
+</style>
+</head>
+<body>
+<main>
+  <h1>SQL Playground</h1>
+  <p class="sub">Two tables, one canvas. Pick a join, a filter, a group or a calculation and see what happens to every row before you press Run.</p>
+  <div class="row"><p id="hint" class="meta" style="margin:0">Loading database…</p><button class="btn" id="reset" style="margin-left:auto">Reset</button></div>
+
+  <div class="panels" id="panels"></div>
+
+  <div class="box jbar" id="jbar">
+    <div class="row" style="margin:0" id="jtypes">
+      <button class="jt on" data-j="NONE">No join</button>
+      <button class="jt" data-j="INNER">INNER</button>
+      <button class="jt" data-j="LEFT">LEFT</button>
+      <button class="jt" data-j="RIGHT">RIGHT</button>
+      <button class="jt" data-j="FULL">FULL</button>
+    </div>
+    <div class="row hide" id="jon" style="margin:0"><code style="background:var(--bg);padding:3px 8px;border-radius:4px;border:1px solid var(--line)">ON claims.payer_id = payers.payer_id</code><span class="meta" style="margin:0">Fixed. These two tables link only through payer_id.</span></div>
+    <div class="row hide jx" id="jx" style="margin:0"><span id="venn"></span><span id="jtext" class="meta" style="margin:0"></span></div>
+  </div>
+
+  <div class="row" id="palette">
+    <span class="meta" style="margin:0">Blocks</span>
+    <div class="chip" draggable="true" tabindex="0" data-t="where">WHERE</div>
+    <div class="chip" draggable="true" tabindex="0" data-t="group">GROUP BY</div>
+    <div class="chip hide" draggable="true" tabindex="0" data-t="having">HAVING</div>
+    <div class="chip" draggable="true" tabindex="0" data-t="calc">AGGREGATE</div>
+    <div class="chip" draggable="true" tabindex="0" data-t="expr">EXPRESSION</div>
+    <div class="chip" draggable="true" tabindex="0" data-t="sort">ORDER BY</div>
+  </div>
+  <div id="blocks"></div>
+  <div id="legend"></div>
+
+  <pre id="sqlview"></pre>
+  <textarea id="editor" class="hide" spellcheck="false" aria-label="SQL editor"></textarea>
+  <div class="row">
+    <button class="btn run" id="run" disabled>Run</button>
+    <label><input type="checkbox" id="manual" style="width:auto"> Edit the SQL by hand</label>
+  </div>
+  <div id="out"></div>
+
+  <h2>Challenge</h2>
+  <div class="box" style="padding:14px 16px">
+    <p id="qtext" style="margin:0 0 10px"></p>
+    <div class="row" style="margin:0">
+      <button class="btn" id="check">Check my query</button>
+      <button class="btn" id="hint2">Hint</button>
+      <button class="btn" id="show">Show answer</button>
+      <button class="btn" id="next">Next</button>
+    </div>
+    <div id="fb"></div>
+  </div>
+  <footer>Sample data is synthetic. Queries run on SQLite compiled to WebAssembly (sql.js), so a few functions differ from PostgreSQL or BigQuery.</footer>
+</main>
+
+<script>
+const $=id=>document.getElementById(id);
+const T={claims:{cols:['claim_id','payer_id','status','state','amount'],num:['claim_id','payer_id','amount']},
+         payers:{cols:['payer_id','name','type','state','credit_limit'],num:['payer_id','credit_limit']}};
+const SEED={
+ claims:[[1,1,'Paid','TX',1200],[2,1,'Pending','FL',430],[3,2,'Blocked','CA',860],[4,2,'Paid','CA',2200],[5,3,'Denied','FL',150],[6,3,'Paid','FL',3100],[7,4,'Pending','NY',720],[8,1,'Paid','TX',980],[9,4,'Blocked','NY',510],[10,3,'Pending','TX',1900],[11,7,'Paid','FL',640],[12,7,'Denied','CA',275],[13,null,'Pending','NY',390],[14,2,'Paid','TX',1750],[15,1,'Blocked','FL',1320],[16,4,'Paid','CA',2480]],
+ payers:[[1,'Acme Insurance','AUTO','TX',50000],[2,'SafeWork Mutual','WC','CA',30000],[3,'Delta Mutual','AUTO','FL',45000],[4,'Northwind Cover','WC','NY',25000],[5,'Harbor Re','AUTO','FL',60000],[6,'Summit Mutual','WC','TX',20000]]};
+const JN={INNER:'INNER JOIN',LEFT:'LEFT JOIN',RIGHT:'RIGHT JOIN',FULL:'FULL OUTER JOIN'};
+const JTXT={INNER:'Keeps only rows that have a match on both sides. Everything else is dropped.',LEFT:'Keeps every claims row. When payers has no match, its columns become NULL.',RIGHT:'Keeps every payers row. When claims has no match, its columns become NULL.',FULL:'Keeps every row from both tables. A missing side becomes NULL.'};
+const QZ=[
+ {p:"Show claim_id and amount for claims in state 'FL'.",a:"SELECT claim_id, amount FROM claims WHERE state = 'FL'",h:'Select two columns, then drop WHERE on claims.state and choose FL.'},
+ {p:'Count how many claims each status has.',a:'SELECT status, COUNT(*) FROM claims GROUP BY status',h:'Drop GROUP BY on claims.status. COUNT(*) appears automatically.'},
+ {p:'Show each claim_id with the name of its payer. Only claims that have a payer.',a:'SELECT claims.claim_id, payers.name FROM claims INNER JOIN payers ON claims.payer_id = payers.payer_id',h:'Choose INNER, then select claim_id and name.'},
+ {p:'List every payer name with its claim_id, including payers that have no claims.',a:'SELECT payers.name, claims.claim_id FROM claims RIGHT JOIN payers ON claims.payer_id = payers.payer_id',h:'Which side must be fully kept? Watch the highlighted rows.'},
+ {p:'Total claim amount per payer name, keeping payers with no claims.',a:'SELECT payers.name, SUM(claims.amount) FROM claims RIGHT JOIN payers ON claims.payer_id = payers.payer_id GROUP BY payers.name',h:'RIGHT join, GROUP BY payers.name, then change the aggregate to SUM(claims.amount).'},
+ {p:'Show each state whose total claim amount is above 3000.',a:'SELECT state, SUM(amount) FROM claims GROUP BY state HAVING SUM(amount) > 3000',h:'GROUP BY state, set the aggregate to SUM(amount), then add HAVING. Groups that fail fade out.'},
+ {p:'Show claim_id and amount, largest amount first.',a:'SELECT claim_id, amount FROM claims ORDER BY amount DESC',h:'Select both columns, then drop ORDER BY on amount and pick DESC. The rows reorder live.'},
+ {p:'Show claim_id, amount and amount * 1.1 for every claim.',a:'SELECT claim_id, amount, amount * 1.1 FROM claims',h:'Select claim_id and amount, drop EXPRESSION on amount, choose *, then type 1.1.'}
+];
+const OPS=['=','!=','>','<','>=','<=','LIKE'],HOPS=['>','<','>=','<=','=','!='],FNS=['COUNT','COUNT DISTINCT','SUM','AVG','MIN','MAX'],MATH=['+','-','*','/'];
+const OPW={'+':'plus','-':'minus','*':'times','/':'div'};
+const E0=()=>({where:[],group:null,calc:[],having:[],expr:[],sort:[]});
+let db,D={},base='claims',join=null,sel=[],st=E0(),armed=null,qi=0,note='',uid=1;
+
+const esc=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+const hl=s=>esc(s).replace(/\b(GROUP BY)\b/g,'<b class="g">$1</b>').replace(/\b(INNER JOIN|LEFT JOIN|RIGHT JOIN|FULL OUTER JOIN|ON)\b/g,'<b class="j">$1</b>').replace(/\b(SELECT|FROM|WHERE|HAVING|ORDER BY|AND|LIKE|AS|DESC|ASC|DISTINCT|COUNT|SUM|AVG|MIN|MAX)\b/g,'<b class="k">$1</b>');
+const q=sql=>{const r=db.exec(sql);return r.length?{cols:r[0].columns,rows:r[0].values}:{cols:[],rows:[]}};
+const tOf=c=>c.split('.')[0],cOf=c=>c.split('.')[1];
+const ex=id=>st.expr.find(e=>e.id===id);
+const isNum=c=>c==='*'?false:c[0]==='#'?true:T[tOf(c)].num.includes(cOf(c));
+const tabs=()=>join?['claims','payers']:[base];
+const avail=()=>tabs().flatMap(t=>T[t].cols.map(c=>t+'.'+c));
+const Qn=c=>join?c:cOf(c);
+const idx=(t,c)=>T[t].cols.indexOf(c);
+const val=(t,r,c)=>D[t].rows[r][idx(t,c)];
+const numv=v=>(v===''||v===null||isNaN(+v))?0:+v;
+const exName=e=>cOf(e.left)+'_'+OPW[e.op]+'_'+(e.rhs==='#'?String(e.num).replace(/\W+/g,'_'):cOf(e.rhs));
+const exSQL=e=>Qn(e.left)+' '+e.op+' '+(e.rhs==='#'?numv(e.num):Qn(e.rhs));
+const colText=c=>c==='*'?'*':c[0]==='#'?'('+exSQL(ex(c.slice(1)))+')':Qn(c);
+const colName=c=>c==='*'?'rows':c[0]==='#'?exName(ex(c.slice(1))):cOf(c);
+const alias=c=>c.fn.toLowerCase().replace(' ','_')+'_'+colName(c.col);
+const aggSQL=c=>(c.fn==='COUNT DISTINCT'?'COUNT(DISTINCT ':c.fn+'(')+colText(c.col)+')';
+const colVals=c=>{const t=tOf(c),i=idx(t,cOf(c));return [...new Set(D[t].rows.map(r=>r[i]).filter(v=>v!==null))].sort((a,b)=>a>b?1:a<b?-1:0)};
+const exRefs=()=>st.expr.map(e=>['#'+e.id,exName(e)]);
+function calcCols(fn){const a=avail(),x=exRefs();return fn==='COUNT'?['*'].concat(a,x):fn==='COUNT DISTINCT'?a.concat(x):a.filter(isNum).concat(x)}
+const cmp=(a,op,b)=>{if(a===null||a===undefined)return false;switch(op){case '=':return a==b;case '!=':return a!=b;case '>':return a>b;case '<':return a<b;case '>=':return a>=b;default:return a<=b}};
+
+async function init(){
+  const SQL=await initSqlJs({locateFile:f=>'https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.3/'+f});
+  db=new SQL.Database();
+  db.run('CREATE TABLE claims(claim_id INTEGER,payer_id INTEGER,status TEXT,state TEXT,amount REAL);CREATE TABLE payers(payer_id INTEGER,name TEXT,type TEXT,state TEXT,credit_limit INTEGER);');
+  SEED.claims.forEach(r=>db.run('INSERT INTO claims VALUES(?,?,?,?,?)',r));
+  SEED.payers.forEach(r=>db.run('INSERT INTO payers VALUES(?,?,?,?,?)',r));
+  D.claims=q('SELECT * FROM claims');D.payers=q('SELECT * FROM payers');
+  $('run').disabled=false;drawQ();redraw();
+}
+
+function test(v,w){
+  if(v===null)return false;
+  if(w.op==='LIKE')return new RegExp('^'+String(w.val).replace(/[.*+?^${}()|[\]\\]/g,'\\$&').replace(/%/g,'.*').replace(/_/g,'.')+'$','i').test(String(v));
+  return isNum(w.col)?cmp(+v,w.op,+w.val):cmp(String(v),w.op,w.val);
+}
+function cond(w){
+  const v=isNum(w.col)&&w.op!=='LIKE'?numv(w.val):"'"+String(w.val).replace(/'/g,"''")+"'";
+  return Qn(w.col)+' '+w.op+' '+v;
+}
+const fromSQL=()=>join?'claims\n'+JN[join.type]+' payers\n  ON claims.payer_id = payers.payer_id':base;
+const whereSQL=()=>st.where.length?'\nWHERE '+st.where.map(cond).join(' AND '):'';
+const havExpr=h=>{const c=st.calc.find(x=>alias(x)===h.ref);return c?aggSQL(c):h.ref};
+function build(){
+  const calcs=st.calc.map(c=>aggSQL(c)+' AS '+alias(c));
+  const exs=(!st.group&&!st.calc.length)?st.expr.map(e=>exSQL(e)+' AS '+exName(e)):[];
+  const cols=st.group?[Qn(st.group)].concat(calcs):calcs.length?calcs:sel.length?sel.map(Qn).concat(exs):exs.length?['*'].concat(exs):['*'];
+  let s='SELECT '+cols.join(', ')+'\nFROM '+fromSQL()+whereSQL();
+  if(st.group)s+='\nGROUP BY '+Qn(st.group);
+  if(st.having.length)s+='\nHAVING '+st.having.map(h=>havExpr(h)+' '+h.op+' '+numv(h.val)).join(' AND ');
+  if(st.sort.length)s+='\nORDER BY '+st.sort.map(x=>(x.by.includes('.')?Qn(x.by):x.by)+' '+x.dir).join(', ');
+  return s+';';
+}
+const sortOpts=()=>avail().concat(st.calc.map(alias),(!st.group&&!st.calc.length)?st.expr.map(exName):[]);
+function prune(){
+  const a=avail();
+  sel=sel.filter(c=>a.includes(c));st.where=st.where.filter(w=>a.includes(w.col));
+  if(st.group&&!a.includes(st.group))st.group=null;
+  st.expr=st.expr.filter(e=>a.includes(e.left)&&(e.rhs==='#'||a.includes(e.rhs)));
+  st.calc=st.calc.filter(c=>c.col==='*'||(c.col[0]==='#'?!!ex(c.col.slice(1)):a.includes(c.col)));
+  if(!st.group)st.having=[];
+  const al=st.calc.map(alias);st.having=st.having.filter(h=>al.includes(h.ref));
+  const so=sortOpts();st.sort=st.sort.filter(s=>so.includes(s.by));
+}
+
+/* Per-group aggregate values, computed by SQLite so they always match what Run will give */
+function groupAgg(){
+  if(!st.group||!st.calc.length)return null;
+  try{
+    const r=q('SELECT '+Qn(st.group)+' AS g, '+st.calc.map(c=>aggSQL(c)+' AS '+alias(c)).join(', ')+'\nFROM '+fromSQL()+whereSQL()+'\nGROUP BY '+Qn(st.group)),m=new Map();
+    r.rows.forEach(row=>{const o={};st.calc.forEach((c,i)=>o[alias(c)]=row[i+1]);m.set(row[0],o)});
+    return m;
+  }catch(e){return null}
+}
+function evalEx(e,t,i){
+  const a=val(t,i,cOf(e.left));let b;
+  if(e.rhs==='#')b=numv(e.num);else{if(tOf(e.rhs)!==t)return null;b=val(t,i,cOf(e.rhs))}
+  if(a===null||b===null)return null;
+  switch(e.op){case '+':return a+b;case '-':return a-b;case '*':return a*b;default:return b===0?null:a/b}
+}
+function rowOrder(t){
+  const ix=[...D[t].rows.keys()];
+  if(join||st.group||st.calc.length||!st.sort.length)return ix;
+  const keys=st.sort.map(s=>{const dir=s.dir==='ASC'?1:-1;
+    if(s.by.includes('.'))return tOf(s.by)===t?{f:i=>val(t,i,cOf(s.by)),dir}:null;
+    const e=st.expr.find(e=>exName(e)===s.by);return e&&tOf(e.left)===t?{f:i=>evalEx(e,t,i),dir}:null}).filter(Boolean);
+  if(!keys.length)return ix;
+  return ix.sort((a,b)=>{for(const k of keys){const x=k.f(a),y=k.f(b);if(x===y)continue;if(x===null)return -k.dir;if(y===null)return k.dir;return (x>y?1:-1)*k.dir}return a-b});
+}
+
+/* Work out how every row should look before the query runs */
+function analyze(){
+  const info={},hue=i=>(i*67+20)%360;
+  ['claims','payers'].forEach(t=>info[t]=D[t].rows.map(()=>({cls:[],bg:'',st:'',bd:'',h:'',hit:{}})));
+  let stats=null;
+  if(join){
+    const L=D.claims.rows.map((_,i)=>val('claims',i,'payer_id')),R=D.payers.rows.map((_,i)=>val('payers',i,'payer_id')),cl=new Map(),cr=new Map();
+    L.forEach(k=>k!==null&&cl.set(k,(cl.get(k)||0)+1));R.forEach(k=>k!==null&&cr.set(k,(cr.get(k)||0)+1));
+    const order=[...cl.keys()].filter(k=>cr.has(k));let pairs=0,lu=0,ru=0;
+    order.forEach(k=>pairs+=cl.get(k)*cr.get(k));
+    const kl=['LEFT','FULL'].includes(join.type),kr=['RIGHT','FULL'].includes(join.type);
+    const mark=(arr,keys,other,keep)=>keys.forEach((k,i)=>{const o=arr[i];
+      if(k!==null&&other.has(k)){o.bg=`hsl(${hue(order.indexOf(k))} 70% 50% / .28)`;o.bd='↔ '+other.get(k);o.h='k'+k}
+      else if(keep){o.cls.push('un');o.bd='+ NULLs'}else{o.cls.push('dim');o.bd='✕ dropped'}});
+    mark(info.claims,L,cr,kl);mark(info.payers,R,cl,kr);
+    L.forEach(k=>{if(k===null||!cr.has(k))lu++});R.forEach(k=>{if(k===null||!cl.has(k))ru++});
+    stats={pairs,lu,ru,total:pairs+(kl?lu:0)+(kr?ru:0)};
+  }
+  const gl=[];
+  tabs().forEach(t=>D[t].rows.forEach((_,i)=>{
+    st.where.filter(w=>tOf(w.col)===t).forEach(w=>{if(test(val(t,i,cOf(w.col)),w))info[t][i].hit[cOf(w.col)]=1;else info[t][i].cls.push('dim')});
+  }));
+  if(st.group){
+    const t=tOf(st.group),c=cOf(st.group),agg=groupAgg();
+    colVals(st.group).forEach((v,k)=>{const a=agg&&agg.get(v);
+      gl.push({v,k,n:0,a,col:`hsl(${hue(k)} 65% 48%)`,pass:!st.having.length||!!(a&&st.having.every(h=>cmp(a[h.ref],h.op,numv(h.val))))})});
+    D[t].rows.forEach((_,i)=>{const o=info[t][i],g=gl.find(x=>x.v===val(t,i,c));if(!g)return;
+      if(!g.pass)o.cls.push('dim');
+      o.st=g.col;if(!o.bg)o.bg=`hsl(${hue(g.k)} 65% 48% / .22)`;if(!o.h)o.h='g'+g.v;if(!o.cls.includes('dim'))g.n++});
+    if(st.sort.length)gl.sort((x,y)=>{for(const s of st.sort){
+      let a,b;if(s.by===st.group){a=x.v;b=y.v}else{a=x.a&&x.a[s.by];b=y.a&&y.a[s.by]}
+      if(a===undefined||b===undefined||a===b)continue;
+      a=a===null?-Infinity:a;b=b===null?-Infinity:b;return (a>b?1:-1)*(s.dir==='ASC'?1:-1)}return 0});
+  }
+  return {info,stats,gl};
+}
+
+function tags(c){
+  const t=[];
+  if(sel.includes(c))t.push(['sel','SELECT','sel']);else if(st.group===c)t.push(['sel','SELECT']);
+  if(join&&cOf(c)==='payer_id')t.push(['join','ON']);
+  if(st.where.some(w=>w.col===c))t.push(['where','WHERE','where']);
+  if(st.group===c)t.push(['group','GROUP BY','group']);
+  if(st.calc.some(x=>x.col===c))t.push(['calc','AGG','calc']);
+  if(st.expr.some(e=>e.left===c))t.push(['expr','EXPR','expr']);
+  const si=st.sort.findIndex(s=>s.by===c);
+  if(si>-1)t.push(['sort','ORDER BY '+(st.sort.length>1?(si+1)+' ':'')+(st.sort[si].dir==='ASC'?'▲':'▼'),'sort']);
+  return t;
+}
+const fmt=v=>v===null?'NULL':typeof v==='number'?Math.round(v*100)/100:v;
+function drawPanels(an){
+  $('panels').innerHTML=['claims','payers'].map(t=>{
+    const inq=tabs().includes(t),cs=T[t].cols;
+    const xs=inq?st.expr.filter(e=>tOf(e.left)===t&&(e.rhs==='#'||tOf(e.rhs)===t)):[];
+    const head='<tr>'+cs.map(c=>{const k=t+'.'+c;return `<th tabindex="0" data-t="${t}" data-c="${c}">${c}${tags(k).map(x=>`<span class="tag t-${x[0]}">${x[1]}${x[2]?`<button class="tx" data-x="${x[2]}" data-q="${k}" aria-label="Remove ${x[1]}">×</button>`:''}</span>`).join('')}</th>`}).join('')+xs.map(e=>`<th class="xc" title="${esc(exSQL(e))}">${esc(exName(e))}</th>`).join('')+(join?'<th>join result</th>':'')+'</tr>';
+    const rows=rowOrder(t).map(i=>{const r=D[t].rows[i],o=an.info[t][i];
+      const style=(o.bg?`background:${o.bg};`:'')+(o.st&&inq?`box-shadow:inset 5px 0 0 ${o.st};`:'');
+      return `<tr class="${o.cls.join(' ')}"${o.h?` data-h="${esc(o.h)}"`:''} style="${style}">`+r.map((v,j)=>{const k=t+'.'+cs[j];
+        return `<td class="${tags(k).length?'on ':''}${isNum(k)?'num':''}${o.hit[cs[j]]?' hit':''}">${v===null?'<i class="nl">NULL</i>':esc(v)}</td>`}).join('')+xs.map(e=>{const v=evalEx(e,t,i);return `<td class="xc">${v===null?'<i class="nl">NULL</i>':fmt(v)}</td>`}).join('')+(join?`<td class="bd">${o.bd}</td>`:'')+'</tr>'}).join('');
+    return `<div class="pn"><div class="ph"><b>${t}</b>${inq?`<span class="bdg">${join?'JOIN':'FROM'}</span>`:''}<span class="meta" style="margin:0">${D[t].rows.length} rows</span></div><div class="box scroll"><table><thead>${head}</thead><tbody>${rows}</tbody></table></div></div>`;
+  }).join('');
+  $('legend').innerHTML=an.gl.length?'<span class="meta" style="margin:0;font-size:13px;display:inline">Groups ('+an.gl.length+'):</span>'+an.gl.map(g=>`<span style="--g:${g.col}" class="${g.pass?'':'gx'}">${esc(g.v)} (${g.n})${g.a?' · '+st.calc.map(c=>alias(c)+' = '+fmt(g.a[alias(c)])).join(', '):''}${g.pass?'':' ✕ HAVING'}</span>`).join(''):'';
+}
+function venn(t){
+  const L=['LEFT','FULL'].includes(t),R=['RIGHT','FULL'].includes(t),f='var(--c-join)';
+  return `<svg viewBox="0 0 120 70" width="120" height="70" aria-hidden="true" style="color:var(--ink)"><defs><clipPath id="cr"><circle cx="75" cy="35" r="26"/></clipPath></defs>
+  <circle cx="45" cy="35" r="26" fill="${L?f:'none'}" fill-opacity=".55"/><circle cx="75" cy="35" r="26" fill="${R?f:'none'}" fill-opacity=".55"/>
+  <circle cx="45" cy="35" r="26" clip-path="url(#cr)" fill="${f}" fill-opacity=".9"/>
+  <circle cx="45" cy="35" r="26" fill="none" stroke="currentColor"/><circle cx="75" cy="35" r="26" fill="none" stroke="currentColor"/>
+  <text x="32" y="39" font-size="12" text-anchor="middle" fill="currentColor">A</text><text x="88" y="39" font-size="12" text-anchor="middle" fill="currentColor">B</text></svg>`;
+}
+function drawJoin(an){
+  [...document.querySelectorAll('.jt')].forEach(b=>b.classList.toggle('on',b.dataset.j===(join?join.type:'NONE')));
+  $('jon').classList.toggle('hide',!join);$('jx').classList.toggle('hide',!join);
+  if(!join)return;
+  const s=an.stats;
+  $('venn').innerHTML=venn(join.type);
+  $('jtext').innerHTML='<b>'+JN[join.type]+'.</b> '+JTXT[join.type]+'<br>Result: <b>'+s.total+' rows</b> ('+s.pairs+' matched pairs, '+s.lu+' unmatched claims, '+s.ru+' unmatched payers). A = claims, B = payers.';
+}
+const sopt=(a,v)=>a.map(o=>{const p=Array.isArray(o)?o:[o,o];return `<option value="${esc(p[0])}"${p[0]===v?' selected':''}>${esc(p[1])}</option>`}).join('');
+function drawBlocks(){
+  let h='';
+  st.where.forEach((w,i)=>{
+    const inp=w.op==='LIKE'?`<input data-k="val" data-i="${i}" value="${esc(w.val)}" placeholder="e.g. A%">`:isNum(w.col)?`<input type="number" data-k="val" data-i="${i}" value="${esc(w.val)}">`:`<select data-k="val" data-i="${i}">${sopt(colVals(w.col),w.val)}</select>`;
+    h+=`<div class="card where"><b>WHERE</b> ${w.col} <select data-k="op" data-i="${i}">${sopt(OPS,w.op)}</select> ${inp}<button class="x" data-rm="where" data-i="${i}" aria-label="Remove">×</button></div>`;
+  });
+  if(st.group)h+=`<div class="card group"><b>GROUP BY</b> ${st.group}<button class="x" data-rm="group" aria-label="Remove">×</button></div>`;
+  st.calc.forEach((c,i)=>{
+    h+=`<div class="card calc"><b>AGGREGATE</b> <select data-k="fn" data-i="${i}">${sopt(FNS,c.fn)}</select> ( <select data-k="col" data-i="${i}">${sopt(calcCols(c.fn),c.col)}</select> )<button class="x" data-rm="calc" data-i="${i}" aria-label="Remove">×</button></div>`;
+  });
+  st.having.forEach((x,i)=>{
+    h+=`<div class="card having"><b>HAVING</b> <select data-k="hr" data-i="${i}">${sopt(st.calc.map(c=>[alias(c),aggSQL(c)]),x.ref)}</select> <select data-k="ho" data-i="${i}">${sopt(HOPS,x.op)}</select> <input type="number" data-k="hv" data-i="${i}" value="${esc(x.val)}"><button class="x" data-rm="having" data-i="${i}" aria-label="Remove">×</button></div>`;
+  });
+  st.expr.forEach((e,i)=>{
+    const inSel=!st.group&&!st.calc.length;
+    h+=`<div class="card expr"><b>EXPRESSION</b> ${e.left} <select data-k="eo" data-i="${i}">${sopt(MATH,e.op)}</select> <select data-k="er" data-i="${i}">${sopt([['#','number']].concat(avail().filter(isNum)),e.rhs)}</select>${e.rhs==='#'?` <input type="number" step="any" data-k="en" data-i="${i}" value="${esc(e.num)}">`:''} <span class="meta" style="margin:0">AS ${esc(exName(e))}${inSel?'':' (use it inside AGGREGATE)'}</span><button class="x" data-rm="expr" data-i="${i}" aria-label="Remove">×</button></div>`;
+  });
+  st.sort.forEach((s,i)=>{
+    h+=`<div class="card sort"><b>ORDER BY${st.sort.length>1?' '+(i+1):''}</b> <select data-k="by" data-i="${i}">${sopt(sortOpts(),s.by)}</select> <select data-k="dir" data-i="${i}">${sopt(['ASC','DESC'],s.dir)}</select><button class="x" data-rm="sort" data-i="${i}" aria-label="Remove">×</button></div>`;
+  });
+  $('blocks').innerHTML=h;
+}
+const HINTS={where:'WHERE is armed. Click the column you want to filter.',group:'GROUP BY is armed. Click the column to group rows by.',calc:'AGGREGATE is armed. Click the column to calculate on.',expr:'EXPRESSION is armed. Click a number column to do maths with.',sort:'ORDER BY is armed. Click the column to sort by. Click it again to flip ASC and DESC.'};
+function refreshSQL(){const s=build();$('sqlview').innerHTML=hl(s);if($('manual').checked)$('editor').value=s}
+function redraw(){
+  prune();const an=analyze();
+  drawPanels(an);drawJoin(an);drawBlocks();refreshSQL();
+  document.querySelector('.chip[data-t=having]').classList.toggle('hide',!st.group);
+  [...document.querySelectorAll('.chip')].forEach(c=>c.classList.toggle('armed',c.dataset.t===armed));
+  $('hint').textContent=note||(armed?HINTS[armed]:st.group?'Groups are colour banded. Add HAVING to keep only the groups you want.':join?'Hover a row to see its partners. Click headers to SELECT columns, or drop a block on a column.':'Click a header to SELECT a column, or drop a block on a column. Pick a join type below to link both tables.');
+  note='';
+}
+function redraw2(){const an=analyze();drawPanels(an);refreshSQL()}
+
+function addHaving(){
+  if(!st.group||!st.calc.length)return;
+  const c=st.calc[0],agg=groupAgg(),vs=agg?[...agg.values()].map(o=>o[alias(c)]).filter(v=>typeof v==='number').sort((a,b)=>a-b):[];
+  st.having.push({ref:alias(c),op:'>',val:String(vs.length?Math.round(vs[Math.floor(vs.length/2)]*100)/100:1)});
+  armed=null;redraw();
+}
+function apply(type,c){
+  if(!join&&tOf(c)!==base)base=tOf(c);
+  if(type==='where'){
+    const vs=colVals(c),v=isNum(c)?String(Math.round(vs.reduce((a,b)=>a+b,0)/vs.length)):vs[0];
+    st.where.push({col:c,op:isNum(c)?'>':'=',val:v});
+  }else if(type==='group'){st.group=c;if(!st.calc.length)st.calc.push({fn:'COUNT',col:'*'})}
+  else if(type==='calc')st.calc.push(isNum(c)?{fn:'SUM',col:c}:{fn:'COUNT',col:c});
+  else if(type==='expr'){
+    if(!isNum(c))note='EXPRESSION needs a number column, for example claims.amount.';
+    else st.expr.push({id:'e'+uid++,left:c,op:'*',rhs:'#',num:'2'});
+  }else{const s=st.sort.find(x=>x.by===c);if(s)s.dir=s.dir==='ASC'?'DESC':'ASC';else st.sort.push({by:c,dir:'ASC'})}
+  armed=null;redraw();
+}
+
+function checkJoin(sql){
+  const s=sql.replace(/--.*$/gm,' ');
+  if(!/\bjoin\b/i.test(s))return;
+  const bad=new Error('Join error: claims and payers can only be joined ON claims.payer_id = payers.payer_id.');
+  if(/\b(natural|cross)\b/i.test(s))throw bad;
+  const ons=[...s.matchAll(/\bon\b\s+([\s\S]*?)(?=\b(?:where|group|having|order|limit|inner|left|right|full|join|natural)\b|;|$)/gi)].map(m=>m[1].trim());
+  const using=/\busing\s*\(\s*payer_id\s*\)/i.test(s);
+  const ok=r=>/^(claims\s*\.\s*payer_id\s*=\s*payers\s*\.\s*payer_id|payers\s*\.\s*payer_id\s*=\s*claims\s*\.\s*payer_id)$/i.test(r);
+  if(!(using&&!ons.length)&&(!ons.length||!ons.every(ok)))throw bad;
+}
+function run(){
+  const sql=$('manual').checked?$('editor').value:build();
+  $('fb').innerHTML='';
+  try{checkJoin(sql);show(q(sql))}catch(e){$('out').innerHTML='<p class="err">'+esc(e.message)+'</p>'}
+}
+function show(res){
+  if(!res.cols.length){$('out').innerHTML='<p class="meta">The query ran but returned no rows.</p>';return}
+  $('out').innerHTML='<p class="meta">'+res.rows.length+' rows, '+res.cols.length+' column'+(res.cols.length>1?'s':'')+'</p><div class="box scroll"><table><thead><tr>'+res.cols.map(c=>'<th>'+esc(c)+'</th>').join('')+'</tr></thead><tbody>'+res.rows.slice(0,300).map(r=>'<tr>'+r.map(v=>'<td>'+(v===null?'<i class="nl">NULL</i>':esc(typeof v==='number'?Math.round(v*10000)/10000:v))+'</td>').join('')+'</tr>').join('')+'</tbody></table></div>';
+}
+function norm(r,ordered){
+  const rows=r.rows.map(x=>JSON.stringify(x.map(v=>typeof v==='number'?Math.round(v*100)/100:v).map(String).sort()));
+  return (ordered?rows:rows.sort()).join('|');
+}
+function drawQ(){$('qtext').innerHTML='<b>Question '+(qi+1)+' of '+QZ.length+'.</b> '+esc(QZ[qi].p);$('fb').innerHTML=''}
+$('check').onclick=()=>{
+  const sol=QZ[qi].a,o=/order by/i.test(sol),sql=$('manual').checked?$('editor').value:build();
+  let ok=false,msg='';try{checkJoin(sql);ok=norm(q(sql),o)===norm(q(sol),o)}catch(e){msg=e.message}
+  $('fb').innerHTML=ok?'<p class="fb ok">Correct. Your query returns the expected result.</p>':'<p class="fb bad">'+esc(msg||'Not quite yet. Compare your result with the question and try the hint.')+'</p>';
+};
+$('hint2').onclick=()=>{$('fb').innerHTML='<p class="fb">Hint: '+esc(QZ[qi].h)+'</p>'};
+$('show').onclick=()=>{$('fb').innerHTML='<p class="fb">One possible answer:</p><pre style="min-height:0">'+hl(QZ[qi].a)+'</pre>'};
+$('next').onclick=()=>{qi=(qi+1)%QZ.length;drawQ()};
+
+function reset(){base='claims';join=null;sel=[];st=E0();armed=null;$('out').innerHTML='';redraw()}
+$('reset').onclick=reset;
+$('run').onclick=run;
+$('manual').onchange=e=>{$('sqlview').classList.toggle('hide',e.target.checked);$('editor').classList.toggle('hide',!e.target.checked);if(e.target.checked)$('editor').value=build()};
+$('jtypes').onclick=e=>{const b=e.target.closest('.jt');if(!b)return;join=b.dataset.j==='NONE'?null:{type:b.dataset.j};redraw()};
+
+document.querySelectorAll('.chip').forEach(c=>{
+  c.ondragstart=e=>{e.dataTransfer.setData('text/plain','blk:'+c.dataset.t);e.dataTransfer.effectAllowed='copy'};
+  c.onclick=()=>{if(c.dataset.t==='having'){addHaving();return}armed=armed===c.dataset.t?null:c.dataset.t;redraw()};
+  c.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();c.click()}};
+});
+const colClick=th=>{
+  const c=th.dataset.t+'.'+th.dataset.c;
+  if(armed)return apply(armed,c);
+  if(!join&&th.dataset.t!==base)base=th.dataset.t;
+  sel=sel.includes(c)?sel.filter(x=>x!==c):sel.concat(c);redraw();
+};
+function removeTag(k,c){
+  if(k==='sel')sel=sel.filter(x=>x!==c);
+  else if(k==='where')st.where=st.where.filter(w=>w.col!==c);
+  else if(k==='group'){st.group=null;st.calc=st.calc.filter(x=>!(x.fn==='COUNT'&&x.col==='*'))}
+  else if(k==='calc')st.calc=st.calc.filter(x=>x.col!==c);
+  else if(k==='expr')st.expr=st.expr.filter(e=>e.left!==c);
+  else if(k==='sort')st.sort=st.sort.filter(s=>s.by!==c);
+  redraw();
+}
+const P=$('panels');
+P.onclick=e=>{const x=e.target.closest('.tx');if(x){e.stopPropagation();removeTag(x.dataset.x,x.dataset.q);return}const th=e.target.closest('th[data-c]');if(th)colClick(th)};
+P.onkeydown=e=>{if((e.key==='Enter'||e.key===' ')&&e.target.matches('th[data-c]')){e.preventDefault();colClick(e.target)}};
+P.ondragover=e=>{const th=e.target.closest('th[data-c]');if(th){e.preventDefault();th.classList.add('over')}};
+P.ondragleave=e=>{const th=e.target.closest('th[data-c]');if(th)th.classList.remove('over')};
+P.ondrop=e=>{
+  const th=e.target.closest('th[data-c]');if(!th)return;
+  e.preventDefault();th.classList.remove('over');const d=e.dataTransfer.getData('text/plain');
+  if(d==='blk:having')addHaving();else if(d.startsWith('blk:'))apply(d.slice(4),th.dataset.t+'.'+th.dataset.c);
+};
+const unpair=()=>document.querySelectorAll('tr.pair').forEach(r=>r.classList.remove('pair'));
+P.onmouseover=e=>{const tr=e.target.closest('tr[data-h]');unpair();if(tr)P.querySelectorAll('tr[data-h]').forEach(r=>{if(r.dataset.h===tr.dataset.h)r.classList.add('pair')})};
+P.onmouseleave=unpair;
+
+$('blocks').onclick=e=>{
+  const b=e.target.closest('[data-rm]');if(!b)return;
+  const k=b.dataset.rm,i=+b.dataset.i;
+  if(k==='group'){st.group=null;st.calc=st.calc.filter(c=>!(c.fn==='COUNT'&&c.col==='*'))}
+  else st[k].splice(i,1);
+  redraw();
+};
+$('blocks').oninput=e=>{
+  const t=e.target,k=t.dataset.k,i=+t.dataset.i;
+  if(k==='val')st.where[i].val=t.value;else if(k==='hv')st.having[i].val=t.value;else if(k==='en')st.expr[i].num=t.value;else return;
+  redraw2();
+};
+$('blocks').onchange=e=>{
+  const t=e.target,k=t.dataset.k,i=+t.dataset.i;
+  if(k==='op'){const w=st.where[i];w.op=t.value;const vs=colVals(w.col);
+    if(t.value!=='LIKE'&&(isNum(w.col)?(w.val===''||isNaN(+w.val)):!vs.includes(w.val)))w.val=String(vs[0])}
+  else if(k==='val')st.where[i].val=t.value;
+  else if(k==='fn'){const c=st.calc[i];c.fn=t.value;const o=calcCols(c.fn).map(x=>Array.isArray(x)?x[0]:x);if(!o.includes(c.col))c.col=o[0]}
+  else if(k==='col')st.calc[i].col=t.value;
+  else if(k==='hr')st.having[i].ref=t.value;
+  else if(k==='ho')st.having[i].op=t.value;
+  else if(k==='eo')st.expr[i].op=t.value;
+  else if(k==='er')st.expr[i].rhs=t.value;
+  else if(k==='by')st.sort[i].by=t.value;
+  else if(k==='dir')st.sort[i].dir=t.value;
+  else return;
+  redraw();
+};
+init().catch(e=>{$('hint').textContent='Could not load the SQL engine: '+e.message});
+</script>
+</body>
+</html>
