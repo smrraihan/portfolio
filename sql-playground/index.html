@@ -76,7 +76,7 @@ pre{margin:0 0 10px;background:var(--code);color:var(--codefg);padding:14px 16px
 pre b.k{color:#8fb2ff}pre b.g{color:#4fd1b0}pre b.j{color:#ff8fb3}
 textarea{width:100%;min-height:150px;margin-bottom:10px;background:var(--code);color:var(--codefg);border:1px solid var(--line);border-radius:9px;padding:14px 16px;font:13px/1.65 ui-monospace,Menlo,Consolas,monospace;resize:vertical}
 .err{color:var(--bad);margin:0}.fb{font-weight:600;margin:8px 0}.fb.ok{color:var(--ok)}.fb.bad{color:var(--bad)}
-.hide{display:none}footer{margin-top:28px;color:var(--mute);font-size:13px}
+.hide{display:none}footer{display:flex;justify-content:space-between;gap:10px 24px;flex-wrap:wrap;margin-top:28px;color:var(--mute);font-size:11px}footer a{color:#a9c5e5;text-decoration:none}footer a:hover{color:#fff;text-decoration:underline}.footer-credit{white-space:nowrap}
 </style>
 </head>
 <body>
@@ -130,7 +130,7 @@ textarea{width:100%;min-height:150px;margin-bottom:10px;background:var(--code);c
     </div>
     <div id="fb"></div>
   </div>
-  <footer>Sample data is synthetic. Queries run on SQLite compiled to WebAssembly (sql.js), so a few functions differ from PostgreSQL or BigQuery.</footer>
+  <footer><span class="footer-credit">Built by <a href="https://smrraihan.github.io/portfolio/" target="_blank" rel="noopener noreferrer">Rakibul Raihan</a> · <a href="https://github.com/smrraihan" target="_blank" rel="noopener noreferrer">GitHub</a></span><span>Sample data is synthetic. Queries run on SQLite compiled to WebAssembly (sql.js), so a few functions differ from PostgreSQL or BigQuery.</span></footer>
 </main>
 
 <script>
