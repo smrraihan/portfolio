@@ -269,6 +269,23 @@
     </article>
 
   </div>
+
+  <article class="course-card sql-playground-card" data-reveal>
+    <div class="course-video">
+      <img id="sql-playground-preview" alt="Animated preview of the SQL Playground, showing clause blocks and a query being built">
+    </div>
+    <div class="course-content">
+      <span class="course-badge">Free interactive practice</span>
+      <h3>SQL Playground</h3>
+      <p>Explore inventory data, build queries with visual clause blocks and see the results as you go.</p>
+      <a class="button primary" href="https://smrraihan.github.io/portfolio/sql-playground/index.html" target="_blank" rel="noopener">Try the SQL Playground →</a>
+    </div>
+  </article>
+  <script>
+    fetch('assets/sql-playground.gif.b64')
+      .then(response => response.text())
+      .then(data => { document.getElementById('sql-playground-preview').src = 'data:image/gif;base64,' + data.trim(); });
+  </script>
 </section>
 
 
